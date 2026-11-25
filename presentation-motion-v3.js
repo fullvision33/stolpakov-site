@@ -16,7 +16,7 @@
   camera.position.set(0, 0, 10);
   const lowPowerDevice=(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4)||(navigator.deviceMemory&&navigator.deviceMemory<=4);
   const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, powerPreference:lowPowerDevice?'low-power':'default'});
-  const targetPixelRatio=()=>Math.min(window.devicePixelRatio||1,innerWidth<=760?2.5:1.5);
+  const targetPixelRatio=()=>Math.min(window.devicePixelRatio||1,innerWidth<=760?1.5:(lowPowerDevice?1.5:1.75));
   let qualityRatio=targetPixelRatio();
   renderer.setSize(innerWidth, sceneHeight());
   renderer.setPixelRatio(qualityRatio);
@@ -53,20 +53,18 @@
 
   const ring = new THREE.Group();
   const ringCore = new THREE.Mesh(
-    new THREE.TorusGeometry(2.8, 0.078, 32, 256),
-    new THREE.MeshPhysicalMaterial({color:0xbda080,emissive:0x6a4932,emissiveIntensity:.22,metalness:.12,roughness:.38,clearcoat:0,envMap:roomTexture,envMapIntensity:.8,transparent:true,opacity:1,depthWrite:true})
+    new THREE.TorusGeometry(2.8, 0.078, 24, 128),
+    new THREE.MeshStandardMaterial({color:0xbda080,emissive:0x6a4932,emissiveIntensity:.22,metalness:.14,roughness:.38,envMap:roomTexture,envMapIntensity:.8,transparent:true,opacity:1,depthWrite:true})
   );
   ring.add(ringCore);
   const ringLights = [];
   const ringLightTargets = [];
-  for (const [x,y,power] of [[0,2.8,7.4],[2.8,0,6.2],[0,-2.8,6.2],[-2.8,0,6.2]]) {
-    const lamp = new THREE.SpotLight(0xffd09a,power,18,Math.PI/3,0.72,1.35);
+  for (const [x,y,power] of [[0,2.8,2.2],[0,-2.8,1.8]]) {
+    const lamp = new THREE.PointLight(0xffd09a,power,18,1.35);
     lamp.userData.basePower = power;
-    lamp.position.set(x,y,0);
+    lamp.position.set(x,y,0.4);
     ring.add(lamp);
-    scene.add(lamp.target);
     ringLights.push(lamp);
-    ringLightTargets.push(lamp.target);
   }
 
   const glowCanvas = document.createElement('canvas');
@@ -130,12 +128,12 @@
   // It uses the site's bundled Three.js only; no extra animation packages/assets.
   const portalTunnel = new THREE.Group();
   const portalHoops = [];
+  const portalHoopGeo = new THREE.TorusGeometry(2.0, .065, 16, 96);
   for (let i = 0; i < 13; i++) {
     const hoop = new THREE.Group();
-    const radius=2.0;
     const core = new THREE.Mesh(
-      new THREE.TorusGeometry(radius, .065, 24, 160),
-      new THREE.MeshPhysicalMaterial({color:0xbda080,emissive:0x765137,emissiveIntensity:.28,metalness:.12,roughness:.38,clearcoat:0,envMap:roomTexture,envMapIntensity:.8,transparent:true,opacity:0,depthWrite:true})
+      portalHoopGeo,
+      new THREE.MeshStandardMaterial({color:0xbda080,emissive:0x765137,emissiveIntensity:.28,metalness:.14,roughness:.38,envMap:roomTexture,envMapIntensity:.8,transparent:true,opacity:0,depthWrite:true})
     );
     hoop.add(core);
     hoop.position.z = -1.15 - i * 3.15;
@@ -273,22 +271,42 @@
   const modelLoader = new THREE.GLTFLoader();
   async function loadBust() {
     try {
-      const response=await fetch('busto.glb.gz?v=22',{cache:'force-cache'});
+      const response=await fetch('busto.glb.gz?v=24',{cache:'force-cache'});
       if (!response.ok) throw new Error('Модель не найдена');
-      const packed=await response.arrayBuffer();
+      let packed;
+      const totalBytes=Number(response.headers.get('Content-Length')||0);
+      if (response.body && totalBytes > 0) {
+        const reader=response.body.getReader();
+        const chunks=[];
+        let received=0;
+        while (true) {
+          const {done,value}=await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received+=value.length;
+          const pct=Math.min(99,Math.round((received/totalBytes)*100));
+          status.childNodes[0].textContent=`Скульптура ${pct}% `;
+        }
+        const merged=new Uint8Array(received);
+        let offset=0;
+        for (const chunk of chunks) { merged.set(chunk,offset); offset+=chunk.length; }
+        packed=merged.buffer;
+      } else {
+        packed=await response.arrayBuffer();
+      }
       const signature=new Uint8Array(packed,0,4);
       const glb=signature[0]===0x1f&&signature[1]===0x8b
         ? await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
         : packed;
-      modelLoader.parse(glb,'',result=>installModel(result.scene),()=>setStatus('Не удалось загрузить модель'));
+      modelLoader.parse(glb,'',result=>{
+        installModel(result.scene);
+        if (typeof window.__triggerBustArrival==='function') window.__triggerBustArrival();
+      },()=>setStatus('Не удалось загрузить модель'));
     } catch (error) {
       setStatus('Не удалось загрузить модель');
     }
   }
-  const scheduleModelLoad=window.requestIdleCallback
-    ? ()=>requestIdleCallback(loadBust,{timeout:1200})
-    : ()=>setTimeout(loadBust,80);
-  scheduleModelLoad();
+  loadBust();
 
   const desktopStates = [
     {camPos:{x:0,y:0,z:10},statuePos:{x:1.05,y:0,z:0},statueRot:{x:0,y:0,z:0},ringPos:{x:1.05,y:.5,z:-2},ringRot:{x:0,y:0,z:0},ringScale:1,keyPos:{x:-2.2,y:3.2,z:3.8}},
@@ -314,42 +332,42 @@
   let ringLightGain=1;
 
   function revealText(element, html, duration, delay=0) {
-    if(element._revealState)gsap.killTweensOf(element._revealState);
-    const tokens = html.match(/<br\s*\/?\s*>|[\s\S]/gi) || [];
-    const progress = {count:0};
-    element._revealState=progress;
-    element.innerHTML = '';
-    element.style.opacity = 1;
-    gsap.to(progress,{count:tokens.length,duration,delay,ease:'none',onUpdate:()=>{
-      element.innerHTML = tokens.slice(0,Math.floor(progress.count)).join('');
-    },onComplete:()=>{element.innerHTML=html;}});
+    if(!element)return;
+    gsap.killTweensOf(element);
+    element.innerHTML = html;
+    gsap.fromTo(
+      element,
+      {opacity:0, y:18, clipPath:'inset(0 0 100% 0)'},
+      {opacity:1, y:0, clipPath:'inset(0 0 0% 0)', duration:Math.min(0.62, Math.max(0.38, duration)), delay, ease:'power4.out', clearProps:'clipPath'}
+    );
   }
 
   function animateText(index) {
     if (index===0) {
-      revealText(document.querySelector('#title-1'),'Экспертиза<br><em>обретает форму.</em>',1.4);
-      gsap.fromTo('#desc-1',{opacity:0,y:20},{opacity:1,y:0,duration:1,delay:.8});
+      revealText(document.querySelector('#title-1'),'Экспертиза<br><em>обретает форму.</em>',.58,0);
+      gsap.fromTo('#slide-1 .hero-kicker',{opacity:0,y:8},{opacity:.88,y:0,duration:.42,ease:'power3.out'});
+      gsap.fromTo('#desc-1',{opacity:0,y:12},{opacity:1,y:0,duration:.45,delay:.1,ease:'power3.out'});
+      gsap.fromTo('#slide-1 .hero-aside',{opacity:0,y:8},{opacity:.85,y:0,duration:.42,delay:.16,ease:'power3.out'});
     } else if (index===1) {
-      revealText(document.querySelector('#title-2-1'),'Искусство замысла',.9);
-      gsap.fromTo('#desc-2-1',{opacity:0},{opacity:1,duration:.5,delay:.7});
-      revealText(document.querySelector('#title-2-2'),'Точность формы',.9,.9);
-      gsap.fromTo('#desc-2-2',{opacity:0},{opacity:1,duration:.5,delay:1.6});
-      revealText(document.querySelector('#title-2-3'),'Система движения',.9,1.8);
-      gsap.fromTo('#desc-2-3',{opacity:0},{opacity:1,duration:.5,delay:2.5});
-      gsap.fromTo('.process-step',{opacity:0,y:18},{opacity:1,y:0,duration:.8,stagger:.18,delay:1.4,ease:'power3.out'});
-      gsap.fromTo('.process-rail>i',{scaleX:0},{scaleX:1,duration:.7,stagger:.18,delay:1.65,ease:'power2.out'});
+      revealText(document.querySelector('#title-2-1'),'Искусство замысла',.45,0);
+      revealText(document.querySelector('#title-2-2'),'Точность формы',.45,.08);
+      revealText(document.querySelector('#title-2-3'),'Система движения',.45,.16);
+      gsap.fromTo('#slide-2 .text-block p',{opacity:0,y:10},{opacity:1,y:0,duration:.4,stagger:.06,delay:.08,ease:'power3.out'});
+      gsap.fromTo('.process-step',{opacity:0,y:12},{opacity:1,y:0,duration:.45,stagger:.07,delay:.16,ease:'power3.out'});
+      gsap.fromTo('.process-rail>i',{scaleX:0},{scaleX:1,duration:.45,stagger:.08,delay:.22,ease:'power2.out'});
     } else if (index===2) {
-      revealText(document.querySelector('#title-3'),'У каждой идеи<br>есть своя форма.',1.4);
-      gsap.fromTo('.columns',{opacity:0,y:30},{opacity:1,y:0,duration:.85,delay:.55});
+      revealText(document.querySelector('#title-3'),'У каждой идеи<br>есть своя форма.',.52,0);
+      gsap.fromTo('.columns',{opacity:0,y:14},{opacity:1,y:0,duration:.45,delay:.1,ease:'power3.out'});
     } else {
-      revealText(document.querySelector('#title-4'),'Создадим то,<br><em>что имеет значение.</em>',.55);
-      gsap.fromTo('#slide-4 .slide4-kicker',{opacity:0,x:-18},{opacity:1,x:0,duration:.65,ease:'power2.out'});
-      gsap.fromTo('#desc-4',{opacity:0,y:18},{opacity:1,y:0,duration:.55,delay:.28,ease:'power3.out'});
-      gsap.fromTo('.slide4-contact',{opacity:0,y:12},{opacity:1,y:0,duration:.55,delay:.42,ease:'power3.out'});
+      revealText(document.querySelector('#title-4'),'Создадим то,<br><em>что имеет значение.</em>',.5,0);
+      gsap.fromTo('#slide-4 .slide4-kicker',{opacity:0,x:-12},{opacity:1,x:0,duration:.4,ease:'power2.out'});
+      gsap.fromTo('#desc-4',{opacity:0,y:12},{opacity:1,y:0,duration:.42,delay:.1,ease:'power3.out'});
+      gsap.fromTo('.slide4-contact',{opacity:0,y:10},{opacity:1,y:0,duration:.42,delay:.16,ease:'power3.out'});
     }
   }
 
   let currentSlide=0;
+  let slideTransitionToken=0;
   let sceneScrollTarget=0;
   let sceneScrollProgress=0;
   let portalProgress=0;
@@ -369,19 +387,35 @@
     if(index===currentSlide)return;
     const previous=currentSlide;
     currentSlide=index;
+    const token=++slideTransitionToken;
     dots.forEach((dot,i)=>{dot.classList.toggle('active',i===index);if(i===index)dot.setAttribute('aria-current','step');else dot.removeAttribute('aria-current');});
     navItems.forEach((link,i)=>link.classList.toggle('active',i===index));
     const previousContent=document.querySelector(`#slide-${previous+1}`);
     const nextContent=document.querySelector(`#slide-${index+1}`);
     gsap.killTweensOf('.slide-content');
-    activeSlides.forEach((content,i)=>{if(i!==previous&&i!==index){content.classList.remove('active');gsap.set(content,{clearProps:'all'});}});
-    gsap.to(previousContent,{y:-90,opacity:0,duration:.65,ease:'power2.in',onComplete:()=>{if(currentSlide!==previous)previousContent.classList.remove('active');gsap.set(previousContent,{y:0,opacity:1});}});
-    nextContent.classList.add('active');
-    gsap.fromTo(nextContent,{y:28,opacity:0},{y:0,opacity:1,duration:.8,ease:'power3.out'});
-    if(index===1){document.querySelectorAll('#slide-2 .text-block p').forEach(p=>p.style.opacity=0);document.querySelectorAll('.process-step').forEach(step=>gsap.set(step,{clearProps:'all'}));gsap.set('.process-rail>i',{clearProps:'all'});}
-    if(index===2)document.querySelector('.columns').style.opacity=0;
-    if(index===3)gsap.set('#slide-4 .slide4-kicker, #desc-4, .slide4-contact',{opacity:0});
-    animateText(index);
+    gsap.killTweensOf('.slide-content *');
+    // Immediately hide all slides except previous (exiting cleanly) so two slides NEVER overlap
+    activeSlides.forEach((content,i)=>{
+      if(i!==previous){
+        content.classList.remove('active');
+        gsap.set(content,{clearProps:'all',opacity:0});
+      }
+    });
+    gsap.to(previousContent,{
+      y:-26,
+      opacity:0,
+      duration:.22,
+      ease:'power2.in',
+      onComplete:()=>{
+        previousContent.classList.remove('active');
+        gsap.set(previousContent,{clearProps:'all'});
+        if(token!==slideTransitionToken)return;
+        nextContent.classList.add('active');
+        gsap.fromTo(nextContent,{y:18,opacity:0},{y:0,opacity:1,duration:.42,ease:'power3.out'});
+        animateText(index);
+        if(typeof window.__updateHeroTextFill==='function') window.__updateHeroTextFill(sceneScrollProgress, index);
+      }
+    });
   }
   window.goToSlide=function(index){
     if(index<0||index>=sceneStates.length)return;
@@ -468,17 +502,12 @@
         qualityElapsed=0;qualityFrames=0;
       }
     }else{qualityElapsed=0;qualityFrames=0;}
-    const damping=1-Math.exp(-dt*6.5);
+    const damping=1-Math.exp(-dt*10.5);
     pageProgress+=(pageTarget-pageProgress)*damping;
     exitScreen.style.visibility=pageTarget>=1||pageProgress>portalStart?'visible':'hidden';
     showcaseFrame.style.visibility=pageProgress>.999&&pageTarget>=1?'hidden':'visible';
     sceneScrollProgress=clamp01(pageProgress/portalStart);
     portalProgress=clamp01((pageProgress-portalStart)/(1-portalStart));
-    const transitionActive=portalProgress>.001&&portalProgress<.999;
-    const interactionActive=time-lastInteraction<900;
-    // The scene is static between interactions: avoid submitting empty WebGL frames.
-    // Scroll/portal motion still gets the full real-time render path immediately.
-    if(!transitionActive&&!interactionActive&&time-lastGpuFrame<250)return;
     lastGpuFrame=time;
     const focusArrival=smoothStep(.16,.96,portalProgress);
     document.body.style.setProperty('--focus-blur',`${(1-focusArrival)*10}px`);
@@ -486,7 +515,9 @@
     document.body.style.setProperty('--portal-light-opacity',String(smoothStep(.08,.25,portalProgress)*(1-smoothStep(.90,1,portalProgress))));
     sceneScrollTarget=sceneScrollProgress;
     portalTarget=portalProgress;
-    activateSlide(Math.min(sceneStates.length-1,Math.round(sceneTrack(sceneScrollProgress))));
+    const activeIdx=Math.min(sceneStates.length-1,Math.round(sceneTrack(sceneScrollProgress)));
+    activateSlide(activeIdx);
+    if(typeof window.__updateHeroTextFill==='function') window.__updateHeroTextFill(sceneScrollProgress, currentSlide);
     if(pageTarget>=1&&pageProgress>.999){
       document.documentElement.classList.add('epilogue-idle');
       exitScreen.style.opacity='1';exitScreen.style.clipPath='none';
@@ -520,7 +551,7 @@
       const from=sceneStates[segment],to=sceneStates[segment+1];
       const mix=(a,b)=>a+(b-a)*blend;
       camera.position.set(mix(from.camPos.x,to.camPos.x),mix(from.camPos.y,to.camPos.y),mix(from.camPos.z,to.camPos.z));
-      camera.lookAt(0,0,0);camera.fov=45;camera.updateProjectionMatrix();
+      camera.lookAt(0,0,0);
       statueGroup.position.set(mix(from.statuePos.x,to.statuePos.x),mix(from.statuePos.y,to.statuePos.y),mix(from.statuePos.z,to.statuePos.z));
       statueGroup.rotation.set(mix(from.statueRot.x,to.statueRot.x),mix(from.statueRot.y,to.statueRot.y),mix(from.statueRot.z,to.statueRot.z));
       statueGroup.scale.setScalar(mix(from.statueScale??1,to.statueScale??1));
@@ -534,8 +565,10 @@
     ringLights.forEach((lamp,index)=>{
       if(portalProgress<.002&&portalTarget<.002){
         lamp.getWorldPosition(lightWorldPosition);
-        ringLightTargets[index].position.copy(statueWorldPosition);
-        ringLightTargets[index].position.y += .15;
+        if(ringLightTargets[index]){
+          ringLightTargets[index].position.copy(statueWorldPosition);
+          ringLightTargets[index].position.y += .15;
+        }
         lightDirection.copy(lightWorldPosition).sub(statueWorldPosition).normalize();
         const facing=Math.max(0,lightDirection.z);
         lamp.userData.sceneFactor=.82+facing*.16;
@@ -576,29 +609,29 @@
       ringFadeMaterials.forEach(material=>material.opacity=material.userData.portalBaseOpacity*(1-ringEvaporation));
       ringLights.forEach(lamp=>{const initial=lamp.userData.sceneFactor??1;const lightFactor=initial+(1-initial)*smoothStep(0,.16,p);lamp.intensity=lamp.userData.basePower*ringLightGain*lightFactor*(1-ringEvaporation);});
       ringDissolveCloud.visible=p>.53&&p<.93;
-      ringDissolveMaterial.uniforms.uOpacity.value=.52*(1-smoothStep(.83,.94,p));
-      const ringMatrixElements=ring.matrixWorld.elements;
-      for(let i=0;i<ringDissolveCount;i++){
-        const j=i*3,offset=ringDissolveOffsets[i];
-        const ox=ringDissolveOrigins[j],oy=ringDissolveOrigins[j+1],oz=ringDissolveOrigins[j+2];
-        const sx=ringMatrixElements[0]*ox+ringMatrixElements[4]*oy+ringMatrixElements[8]*oz+ringMatrixElements[12];
-        const sy=ringMatrixElements[1]*ox+ringMatrixElements[5]*oy+ringMatrixElements[9]*oz+ringMatrixElements[13];
-        const sz=ringMatrixElements[2]*ox+ringMatrixElements[6]*oy+ringMatrixElements[10]*oz+ringMatrixElements[14];
-        const flow=smoothStep(.54+offset*.08,.76+offset*.1,p);
-        const depth=18*flow;
-        ringDissolvePositions[j]=sx*(1-flow*.82);
-        ringDissolvePositions[j+1]=sy*(1-flow*.82);
-        ringDissolvePositions[j+2]=sz-depth;
-        ringDissolveAlphas[i]=smoothStep(.535+offset*.08,.59+offset*.14,p)*(1-smoothStep(.84,.94,p));
+      if(ringDissolveCloud.visible){
+        ringDissolveMaterial.uniforms.uOpacity.value=.52*(1-smoothStep(.83,.94,p));
+        const ringMatrixElements=ring.matrixWorld.elements;
+        for(let i=0;i<ringDissolveCount;i++){
+          const j=i*3,offset=ringDissolveOffsets[i];
+          const ox=ringDissolveOrigins[j],oy=ringDissolveOrigins[j+1],oz=ringDissolveOrigins[j+2];
+          const sx=ringMatrixElements[0]*ox+ringMatrixElements[4]*oy+ringMatrixElements[8]*oz+ringMatrixElements[12];
+          const sy=ringMatrixElements[1]*ox+ringMatrixElements[5]*oy+ringMatrixElements[9]*oz+ringMatrixElements[13];
+          const sz=ringMatrixElements[2]*ox+ringMatrixElements[6]*oy+ringMatrixElements[10]*oz+ringMatrixElements[14];
+          const flow=smoothStep(.54+offset*.08,.76+offset*.1,p);
+          const depth=18*flow;
+          ringDissolvePositions[j]=sx*(1-flow*.82);
+          ringDissolvePositions[j+1]=sy*(1-flow*.82);
+          ringDissolvePositions[j+2]=sz-depth;
+          ringDissolveAlphas[i]=smoothStep(.535+offset*.08,.59+offset*.14,p)*(1-smoothStep(.84,.94,p));
+        }
+        ringDissolveGeometry.attributes.position.needsUpdate=true;
+        ringDissolveGeometry.attributes.aAlpha.needsUpdate=true;
       }
-      ringDissolveGeometry.attributes.position.needsUpdate=true;
-      ringDissolveGeometry.attributes.aAlpha.needsUpdate=true;
       const startCamera=ringStart.camPos;
       const cameraZ=startCamera.z-approach*(startCamera.z-ringPositionStart.z+.3)-travel*45*tunnelScale;
       const cameraX=startCamera.x+(ringPositionStart.x-startCamera.x)*approach,cameraY=startCamera.y+(ringPositionStart.y-startCamera.y)*approach;
       camera.position.set(cameraX,cameraY,cameraZ);
-      camera.fov=45;
-      camera.updateProjectionMatrix();
       camera.lookAt(cameraX*approach,cameraY*approach,(cameraZ-10)*approach);
       camera.updateMatrixWorld();portalTunnel.updateMatrixWorld(true);
       portalHoops[portalHoops.length-1].getWorldPosition(exitWorld);
@@ -677,6 +710,74 @@
       dissolveGeometry.attributes.position.needsUpdate=true;
       dissolveGeometry.attributes.aAlpha.needsUpdate=true;
     }
+    // Built-in Luxury 3D Rig: smooth 60fps museum chiaroscuro light, sculptural arrival, subtle breathing, dynamic FOV-warp & banking
+    if(!scene.userData.luxuryRig){
+      const museumKey=new THREE.SpotLight(0xffd29d,0,28,Math.PI/4.0,0.85,1.2);
+      museumKey.position.set(-4,4,8);
+      scene.add(museumKey);
+      const warmRim=new THREE.PointLight(0xe59c5b,0,22,1.45);
+      warmRim.position.set(4,2,-3);
+      scene.add(warmRim);
+      scene.userData.luxuryRig={
+        museumKey,warmRim,sx:0,sy:0,
+        arrivalP:0,arrivalActive:true,
+        lastProg:pageProgress,vel:0,fovCur:45,bankCur:0
+      };
+      window.__triggerBustArrival=()=>{
+        const r=scene.userData.luxuryRig;
+        if(r){r.arrivalP=0;r.arrivalActive=true;}
+      };
+    }
+    const lrig=scene.userData.luxuryRig;
+    const ptr=window.__sitePointer||{nx:0,ny:0};
+    lrig.sx+=(ptr.nx-lrig.sx)*.06;
+    lrig.sy+=(ptr.ny-lrig.sy)*.06;
+
+    const dp=pageProgress-lrig.lastProg;
+    lrig.lastProg=pageProgress;
+    const instantVel=Math.max(-.04,Math.min(.04,dp))*100;
+    lrig.vel+=(instantVel-lrig.vel)*.12;
+
+    let arrivalEase=0;
+    if(lrig.arrivalActive){
+      lrig.arrivalP=Math.min(1,lrig.arrivalP+dt*0.95);
+      arrivalEase=Math.pow(1-lrig.arrivalP,3.5);
+      if(lrig.arrivalP>=1)lrig.arrivalActive=false;
+    }
+
+    const portalWarp=p>0&&p<.92 ? Math.sin(p*Math.PI)*18 : 0;
+    const speedWarp=Math.min(11,Math.abs(lrig.vel)*5.2);
+    const targetFov=45+portalWarp+speedWarp+arrivalEase*12;
+    lrig.fovCur+=(targetFov-lrig.fovCur)*.1;
+    if(Math.abs(camera.fov-lrig.fovCur)>.02){
+      camera.fov=lrig.fovCur;
+      camera.updateProjectionMatrix();
+    }
+
+    const targetBank=Math.max(-.075,Math.min(.075,lrig.vel*.036-lrig.sx*.018));
+    lrig.bankCur+=(targetBank-lrig.bankCur)*.09;
+
+    if(arrivalEase>.0005){
+      statueGroup.position.y-=arrivalEase*.55;
+      statueGroup.rotation.y-=arrivalEase*.52;
+      const ascale=1-arrivalEase*.08;
+      statueGroup.scale.multiplyScalar(ascale);
+    }
+
+    if(p<.02){
+      statueGroup.rotation.y+=lrig.sx*.14+Math.sin(t*.7)*.022;
+      statueGroup.rotation.x+=-lrig.sy*.065+Math.cos(t*.55)*.012;
+      statueGroup.position.y+=Math.sin(t*1.05)*.038;
+      ring.rotation.y+=lrig.sx*.08;
+      ring.rotation.x+=-lrig.sy*.05;
+      ringCore.material.emissiveIntensity=.22+.08*(.5+.5*Math.sin(t*1.6));
+    }
+    camera.rotation.z+=lrig.bankCur;
+
+    lrig.museumKey.position.set(lrig.sx*7.2-arrivalEase*5,lrig.sy*4.0+2.6,7.0);
+    lrig.museumKey.intensity+=(2.35*(1-arrivalEase*.4)-lrig.museumKey.intensity)*.08;
+    lrig.warmRim.position.set(Math.cos(t*.55)*4.8,Math.sin(t*.42)*2.4+1.5,-2.5);
+    lrig.warmRim.intensity+=(1.05-lrig.warmRim.intensity)*.06;
     renderer.render(scene,camera);
   }
   requestAnimationFrame(render);

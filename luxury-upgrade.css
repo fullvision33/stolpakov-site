@@ -1,0 +1,561 @@
+/* ==========================================================================
+   STOLPAKOV. — Production Luxury Visual & Motion Polish
+   Clean dark-bronze editorial aesthetics, 60fps GPU animations, zero clutter
+   ========================================================================== */
+
+@keyframes bronzeTextSheen {
+  0%   { background-position: -120% center; }
+  100% { background-position: 220% center; }
+}
+
+@keyframes ambientDrift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(0, -14px, 0) scale(1.04); }
+}
+
+/* 1. Velvet Film Grain (desktop only — avoids mobile SVG feTurbulence repaint overhead) */
+.lux-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.65'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+@media (max-width: 760px) {
+  .lux-grain {
+    display: none;
+  }
+}
+
+/* 2. Razor-Thin Top Bronze Scroll Progress Hairline */
+.lux-scroll-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 1.5px;
+  width: 0%;
+  z-index: 120;
+  background: linear-gradient(90deg, #7d5734, #deb484, #fff0d8);
+  box-shadow: 0 0 12px rgba(222, 180, 132, 0.55);
+  pointer-events: none;
+}
+
+/* 3. Upgraded Editorial Typography (replaces raw Arial) */
+body {
+  font-family: 'Segoe UI Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.slide-desc,
+.text-block p,
+.columns p,
+.epilogue-intro {
+  color: #bfb09e;
+  line-height: 1.78;
+}
+
+/* Subtle molten-bronze shimmer on italic display accents */
+h1 em,
+h2 em {
+  background: linear-gradient(105deg, #b88a5c 0%, #f8ddba 40%, #cba072 60%, #b88a5c 100%);
+  background-size: 240% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: bronzeTextSheen 6.5s linear infinite;
+}
+
+/* 4. Clean minimal scene pagination dots (no side text labels) */
+.pagination {
+  gap: 16px;
+}
+
+/* 4b. Large Sticky Editorial Manifesto with Scroll-Linked Light Fill */
+.lux-manifesto {
+  position: relative;
+  z-index: 4;
+  height: 195vh;
+  background: linear-gradient(180deg, #070504 0%, #110b07 50%, #080604 100%);
+  border-top: 1px solid rgba(198, 154, 112, 0.14);
+  border-bottom: 1px solid rgba(198, 154, 112, 0.14);
+}
+.lux-manifesto-sticky {
+  position: sticky;
+  top: 0;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  padding: 80px 0;
+}
+.lux-manifesto-inner {
+  width: min(1180px, 88vw);
+  margin: 0 auto;
+}
+.lux-manifesto-text {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(32px, 4.1vw, 58px);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  margin: 28px 0 48px;
+  max-width: 1080px;
+  color: rgba(198, 154, 112, 0.18);
+}
+.lux-mword {
+  display: inline-block;
+  margin-right: 0.23em;
+  color: rgba(198, 154, 112, 0.18);
+  transition: color 0.24s ease, text-shadow 0.32s ease;
+}
+.lux-mword.is-lit {
+  color: #f3e8da;
+  text-shadow: 0 0 28px rgba(235, 185, 130, 0.24);
+}
+.lux-manifesto-pillars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(198, 154, 112, 0.16);
+}
+.lux-mpillar {
+  opacity: 0.2;
+  transform: translateY(14px);
+  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lux-mpillar.is-lit {
+  opacity: 1;
+  transform: translateY(0);
+}
+.lux-mpillar span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: #c69a70;
+  margin-bottom: 10px;
+}
+.lux-mpillar p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.68;
+  color: #bfb09e;
+}
+@media (max-width: 760px) {
+  .lux-manifesto {
+    height: 175vh;
+  }
+  .lux-manifesto-text {
+    font-size: clamp(26px, 7.2vw, 36px);
+    margin: 20px 0 32px;
+  }
+  .lux-manifesto-pillars {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
+/* 5. Fix mobile overlap of .model-status & make it a sleek bronze pill */
+.model-status {
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(12, 8, 6, 0.62);
+  border: 1px solid rgba(198, 154, 112, 0.24);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+@media (max-width: 760px) {
+  .model-status {
+    bottom: 72px;
+    right: 6vw;
+  }
+}
+
+/* 6. Header & CTA Luxury Micro-Interactions */
+header .contact-link,
+.work-contact a {
+  position: relative;
+  overflow: hidden;
+  will-change: transform;
+  transition:
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.32s ease,
+    color 0.32s ease,
+    border-color 0.32s ease,
+    box-shadow 0.35s ease;
+}
+header .contact-link::before,
+.work-contact a::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -130%;
+  width: 80%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 228, 192, 0.36), transparent);
+  transition: left 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+header .contact-link:hover::before,
+.work-contact a:hover::before {
+  left: 145%;
+}
+header .contact-link:hover,
+.work-contact a:hover {
+  box-shadow: 0 0 28px rgba(198, 154, 112, 0.26);
+}
+
+/* 7. Epilogue Atmosphere, Scroll-Linked Text Fill & Kinetic Marquee */
+.final-glow {
+  animation: ambientDrift 9s ease-in-out infinite;
+}
+
+.epilogue-intro.lux-fill-active {
+  max-width: 760px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(24px, 2.7vw, 38px);
+  line-height: 1.32;
+  letter-spacing: -0.015em;
+  color: rgba(198, 154, 112, 0.22);
+}
+.lux-fill-word {
+  display: inline-block;
+  margin-right: 0.23em;
+  color: rgba(198, 154, 112, 0.22);
+  transition: color 0.28s ease, text-shadow 0.35s ease;
+}
+.lux-fill-word.is-lit {
+  color: #f0e5d7;
+  text-shadow: 0 0 24px rgba(235, 185, 130, 0.22);
+}
+
+.final-row {
+  position: relative;
+  opacity: 0.28;
+  transition: opacity 0.55s ease, transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease;
+}
+.final-row.is-lit {
+  opacity: 1;
+}
+.final-row:hover {
+  transform: translateX(10px);
+}
+
+/* Full-bleed Kinetic Editorial Marquee inside Epilogue */
+.lux-marquee {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-top: 64px;
+  margin-bottom: 64px;
+  padding: 26px 0;
+  overflow: hidden;
+  border-top: 1px solid rgba(198, 154, 112, 0.16);
+  border-bottom: 1px solid rgba(198, 154, 112, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  user-select: none;
+}
+.lux-marquee-track {
+  display: flex;
+  white-space: nowrap;
+  will-change: transform;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(44px, 6.2vw, 96px);
+  font-weight: 400;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  color: rgba(238, 224, 206, 0.22);
+}
+.lux-marquee-track i {
+  font-style: normal;
+  color: rgba(198, 154, 112, 0.52);
+  margin: 0 0.15em;
+}
+.lux-marquee-alt {
+  font-style: italic;
+  color: rgba(198, 154, 112, 0.38);
+}
+@media (max-width: 760px) {
+  .lux-marquee {
+    margin-top: 44px;
+    margin-bottom: 44px;
+    padding: 18px 0;
+  }
+  .epilogue-intro.lux-fill-active {
+    font-size: clamp(21px, 5.8vw, 28px);
+  }
+}
+
+/* 8. Variant 04: 3 System Phases + Smart Telegram Brief + Monumental Footer */
+.lux-phases-section {
+  margin-top: 24px;
+}
+.lux-phases-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 32px;
+  margin-bottom: 48px;
+  flex-wrap: wrap;
+}
+.lux-phases-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+  margin: 14px 0 0;
+  color: #efe5d8;
+}
+.lux-phases-title em {
+  font-style: italic;
+  color: #f0cda2;
+}
+.lux-phases-lead {
+  max-width: 390px;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: #b4a595;
+  margin: 0;
+}
+.lux-phases-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+@media (max-width: 900px) {
+  .lux-phases-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.lux-phase-card {
+  position: relative;
+  overflow: hidden;
+  padding: 38px 28px 34px;
+  border-radius: 6px;
+  border: 1px solid rgba(198, 154, 112, 0.18);
+  background: linear-gradient(170deg, rgba(26, 18, 13, 0.78), rgba(9, 7, 5, 0.62));
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.35s ease,
+    box-shadow 0.4s ease;
+}
+.lux-phase-card.lux-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+.lux-phase-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(300px circle at var(--mx, 50%) var(--my, 50%), rgba(228, 178, 122, 0.16), transparent 64%);
+  opacity: 0;
+  transition: opacity 0.32s ease;
+  pointer-events: none;
+}
+.lux-phase-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(224, 180, 128, 0.54);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.56);
+}
+.lux-phase-card:hover::after {
+  opacity: 1;
+}
+.lux-phase-roman {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 54px;
+  font-style: italic;
+  line-height: 1;
+  color: rgba(198, 154, 112, 0.17);
+  transition: color 0.35s ease;
+}
+.lux-phase-card:hover .lux-phase-roman {
+  color: rgba(240, 205, 162, 0.45);
+}
+.lux-phase-card h4 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 31px;
+  font-weight: 400;
+  line-height: 1.08;
+  margin: 12px 0 16px;
+  color: #efe5d8;
+}
+.lux-phase-card p {
+  margin: 0 0 26px;
+  font-size: 13.5px;
+  line-height: 1.72;
+  color: #b4a595;
+}
+.lux-phase-card ul {
+  margin: auto 0 0;
+  padding: 18px 0 0;
+  border-top: 1px solid rgba(198, 154, 112, 0.18);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lux-phase-card li {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #f0cda2;
+}
+.lux-phase-card li::before {
+  content: "— ";
+  color: #c69a70;
+}
+
+/* Smart Telegram Brief Block */
+.lux-brief {
+  margin: 88px 0 80px;
+  padding: 54px 46px;
+  border-radius: 8px;
+  border: 1px solid rgba(216, 174, 126, 0.28);
+  background: radial-gradient(ellipse at 80% 0%, rgba(198, 154, 112, 0.14), transparent 55%), #0e0a07;
+}
+@media (max-width: 640px) {
+  .lux-brief {
+    padding: 34px 22px;
+    margin: 56px 0 56px;
+  }
+}
+.lux-brief-head h3 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(36px, 4.4vw, 62px);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  margin: 14px 0 0;
+  color: #efe5d8;
+}
+.lux-brief-head h3 em {
+  font-style: italic;
+  color: #f0cda2;
+}
+.lux-brief-head p {
+  margin: 18px 0 30px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #b4a595;
+  max-width: 480px;
+}
+.lux-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+.lux-topic-chip {
+  appearance: none;
+  border: 1px solid rgba(198, 154, 112, 0.32);
+  background: rgba(198, 154, 112, 0.05);
+  color: #cfc0af;
+  font-size: 12.5px;
+  padding: 11px 19px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.lux-topic-chip:hover {
+  border-color: rgba(235, 190, 136, 0.72);
+  color: #efe5d8;
+}
+.lux-topic-chip.is-selected {
+  background: rgba(198, 154, 112, 0.22);
+  border-color: #f0cda2;
+  color: #fff4e6;
+}
+.lux-brief-action {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.lux-cta-pill {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 30px;
+  border-radius: 999px;
+  border: 1px solid rgba(216, 174, 126, 0.65);
+  background: linear-gradient(135deg, rgba(216, 174, 126, 0.16), rgba(155, 111, 71, 0.08));
+  color: #efe5d8;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: all 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lux-cta-pill span {
+  color: #f0cda2;
+  transition: transform 0.3s ease;
+}
+.lux-cta-pill:hover {
+  background: linear-gradient(135deg, #d8af82, #9b6f47);
+  color: #090604;
+  border-color: transparent;
+  box-shadow: 0 16px 40px rgba(198, 154, 112, 0.32);
+  transform: translateY(-2px);
+}
+.lux-cta-pill:hover span {
+  color: #090604;
+  transform: translate(3px, -3px);
+}
+.lux-preview-msg {
+  font-size: 12px;
+  font-style: italic;
+  color: #9c8c7c;
+}
+
+/* Monumental Footer with Giant STOLPAKOV. Watermark */
+footer.lux-footer-monument {
+  display: block;
+  padding: 56px 0 10px;
+  margin-top: 20px;
+  background: transparent;
+  border-top: 1px solid rgba(198, 154, 112, 0.18);
+}
+.lux-footer-watermark {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(54px, 11.5vw, 168px);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  line-height: 0.88;
+  color: rgba(238, 224, 206, 0.07);
+  margin-bottom: 34px;
+  user-select: none;
+}
+.lux-footer-watermark span {
+  color: rgba(198, 154, 112, 0.24);
+}
+.lux-footer-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #9c8c7c;
+}
+.lux-footer-meta a:hover {
+  color: #f0cda2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  h1 em, h2 em, .final-glow { animation: none !important; }
+  .lux-phase-card { opacity: 1; transform: none; }
+}
