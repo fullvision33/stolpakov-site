@@ -1,0 +1,4 @@
+.js-animations .showcase .slide-content h1,.js-animations .showcase .slide-content h2{opacity:0}
+.js-animations .showcase .slide-desc,.js-animations .showcase .text-block p,.js-animations .showcase .columns{opacity:0}
+.js-animations .showcase .slide-content{will-change:opacity}
+.js-animations .showcase h1,.js-animations .showcase h2,.js-animations .showcase p{will-change:opacity,transform}
